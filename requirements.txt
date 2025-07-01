@@ -1,0 +1,17 @@
+langchain
+sentence_transformers
+torch
+pypdf
+langchain-community
+langchain-openai
+PyPDF2
+pandas 
+openpyxl 
+qdrant-client 
+openai 
+python-dotenv
+gradio
+newspaper3k
+tiktoken
+langchain_qdrant
+
