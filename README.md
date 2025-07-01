@@ -1,4 +1,3 @@
-#############################################
 Command to run:
 1. docker info
 2. docker pull qdrant/qdrant 
