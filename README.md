@@ -1,4 +1,4 @@
-Command to run:
+Command to run on local, run on docker
 1. docker info
 2. docker pull qdrant/qdrant 
 3. docker run -p 6333:6333 -v .:/qdrant/storage qdrant/qdrant
