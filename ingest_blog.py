@@ -1,4 +1,3 @@
-
 import os
 import requests
 import tiktoken
@@ -14,7 +13,7 @@ load_dotenv()
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Qdrant config
-COLLECTION_NAME = "blog_data3"  # Update if needed
+COLLECTION_NAME = "blog_master"
 VECTOR_DIM = 1536
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
@@ -30,6 +29,15 @@ def ensure_blog_collection():
         )
 
 
+def is_valid_image(src: str) -> bool:
+    src = src.lower()
+    banned_keywords = [
+        "icon", "logo", "favicon", "sprite", "twitter", "facebook",
+        "linkedin", "whatsapp", "arrow", "mail", "share", "rss", "pinterest"
+    ]
+    return src.startswith("http") and not any(kw in src for kw in banned_keywords)
+
+
 def scrape_blog(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers)
@@ -37,20 +45,30 @@ def scrape_blog(url):
         raise Exception(f"Failed to fetch {url} - Status {resp.status_code}")
 
     soup = BeautifulSoup(resp.text, "html.parser")
+    article_div = soup.find("div", {"id": "detail-article"})
+
+    if not article_div:
+        raise Exception("No <div id='detail-article'> found in HTML.")
+
     content_blocks = []
 
-    for elem in soup.find_all(["p", "h2", "h3", "img", "iframe", "a"]):
+    for elem in article_div.find_all(["p", "h2", "h3", "img", "iframe", "a"]):
         if elem.name in ["h2", "h3", "p"]:
             text = elem.get_text(strip=True)
             if text:
                 content_blocks.append({"type": "text", "content": text})
-        elif elem.name == "img" and elem.get("src", "").startswith("http"):
-            content_blocks.append({"type": "image", "url": elem["src"]})
-        elif elem.name == "iframe" and elem.get("src", "").startswith("http"):
-            content_blocks.append({"type": "video", "url": elem["src"]})
-        elif elem.name == "a" and elem.get("href", "").startswith("http"):
-            href = elem["href"]
-            content_blocks.append({"type": "link", "url": href})
+        elif elem.name == "img":
+            src = elem.get("src", "")
+            if is_valid_image(src):
+                content_blocks.append({"type": "image", "url": src})
+        elif elem.name == "iframe":
+            src = elem.get("src", "")
+            if src.startswith("http"):
+                content_blocks.append({"type": "video", "url": src})
+        elif elem.name == "a":
+            href = elem.get("href", "")
+            if href.startswith("http"):
+                content_blocks.append({"type": "link", "url": href})
 
     return content_blocks
 
@@ -75,9 +93,9 @@ def chunk_and_embed_blog(content_blocks, blog_url=""):
             "vector": emb,
             "payload": {
                 "chunk": text.strip(),
-                "images": imgs[:3],
-                "videos": vids[:2],
-                "links": lks[:3],
+                "images": imgs,
+                "videos": vids,
+                "links": lks,
                 "index": chunk_index,
                 "url": blog_url
             }
